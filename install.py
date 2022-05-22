@@ -6,8 +6,6 @@
 # will then generate a complete Minecraft install directory with all of the
 # mods and overrides installed.
 
-import forge_install
-import fabric_install
 import mod_download
 import os
 import sys
@@ -69,71 +67,6 @@ def main(zipfile, user_mcdir=None, manual=False):
         os.symlink(os.path.abspath('global/saves'), mc_dir + '/saves', True)
         os.symlink(os.path.abspath('global/shaderpacks'), mc_dir + '/shaderpacks', True)
         os.symlink(os.path.abspath('global/assets'), mc_dir + '/assets', True)
-
-    # Install Forge
-    print("Installing modloader")
-    try:
-        with open(packdata_dir + '/manifest.json', 'r') as mf:
-            manifest = json.load(mf)
-    except (json.JsonDecodeError, OSError) as e:
-        print("Manifest file not found or was corrupted.")
-        print(e)
-        return
-
-    # supported modloaders and their run-functions
-    # The run function will take the following arguments:
-    # * manifest JSON
-    # * minecraft version
-    # * modloader version
-    # * modpack name
-    # * minecraft directory
-    # * manual flag: run automatically or show GUI
-    modloaders = {
-        'forge': forge_install,
-        'fabric': fabric_install
-    }
-
-    # I have not yet seen a modpack that has multiple modloaders
-    if len(manifest['minecraft']['modLoaders']) != 1:
-        print("This modpack (%s) has %d modloaders, instead of the normal 1."
-                % (packname, len(manifest['minecraft']['modLoaders'])))
-        print("This is currently unsupported, so expect the installation to fail in some way.")
-        print("Please report which modpack caused this to the maintainer at:")
-        print("  https://github.com/cdbbnnyCode/modpack-installer/issues")
-    modloader, mlver = manifest['minecraft']['modLoaders'][0]["id"].split('-')
-    mcver = manifest['minecraft']['version']
-
-    if not modloader in modloaders:
-        print("This modloader (%s) is not supported." % modloader)
-        print("Currently, the only supported modloaders are %s" % modloaders)
-        return
-
-    print("Updating user launcher profiles")
-
-    # user_mcdir = get_user_mcdir()
-    with open(user_mcdir + '/launcher_profiles.json', 'r') as f:
-        launcher_profiles = json.load(f)
-
-    # add/overwrite the profile
-    # TODO: add options for maximum memory
-    # or config file for the java argument string
-    ml_version_id = modloaders[modloader].get_version_id(mcver, mlver)
-    launcher_profiles['profiles'][packname] = {
-        "icon": "Chest",
-        "javaArgs": "-Xmx4G -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M",
-        "lastVersionId": ml_version_id,
-        "name": packname.replace('+', ' '),
-        "gameDir": os.path.abspath(mc_dir),
-        "type": "custom"
-    }
-    
-    with open(user_mcdir + '/launcher_profiles.json', 'w') as f:
-        json.dump(launcher_profiles, f, indent=2)
-
-    if not os.path.exists(user_mcdir + '/versions/' + ml_version_id):
-        modloaders[modloader].main(manifest, mcver, mlver, packname, user_mcdir, manual)
-    else:
-        print("[modloader already installed]")
 
     # Download mods
     if not os.path.exists(mc_dir + '/.mod_success'):
